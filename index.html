@@ -1,0 +1,500 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>FIFA World Cup Semi-Final Probability Tool</title>
+<style>
+  :root{
+    --bg:#0f1720; --panel:#16212c; --panel2:#1c2b38; --border:#2a3b47;
+    --text:#e8edf1; --muted:#8fa3ad; --accent:#3ecf8e; --warn:#e0a23e; --risk:#e05a4e;
+    --safe:#3ecf8e;
+  }
+  *{box-sizing:border-box;}
+  body{
+    margin:0; font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;
+    background:var(--bg); color:var(--text); padding:24px;
+  }
+  .wrap{max-width:900px; margin:0 auto;}
+  h1{font-size:22px; font-weight:600; margin-bottom:4px;}
+  .sub{color:var(--muted); font-size:14px; margin-bottom:24px;}
+  .panel{
+    background:var(--panel); border:1px solid var(--border); border-radius:12px;
+    padding:18px 20px; margin-bottom:20px;
+  }
+  .panel h2{font-size:15px; font-weight:600; margin:0 0 12px;}
+  label{font-size:12px; color:var(--muted); display:block; margin-bottom:4px;}
+  input[type=text], input[type=password], select{
+    width:100%; padding:9px 10px; border-radius:8px; border:1px solid var(--border);
+    background:var(--panel2); color:var(--text); font-size:13px; margin-bottom:12px;
+  }
+  .row{display:flex; gap:12px;}
+  .row > div{flex:1;}
+  button{
+    background:var(--accent); color:#08130e; border:none; padding:10px 16px;
+    border-radius:8px; font-weight:600; font-size:13px; cursor:pointer;
+  }
+  button.secondary{background:transparent; color:var(--text); border:1px solid var(--border);}
+  button:disabled{opacity:0.5; cursor:not-allowed;}
+  .status{font-size:12px; color:var(--muted); margin-top:8px; min-height:16px;}
+  .status.err{color:var(--risk);}
+  .status.ok{color:var(--safe);}
+  .match-card{
+    background:var(--panel); border:1px solid var(--border); border-radius:12px;
+    padding:18px 20px; margin-bottom:16px;
+  }
+  .match-title{display:flex; justify-content:space-between; align-items:center; margin-bottom:14px;}
+  .match-title h3{font-size:16px; margin:0; font-weight:600;}
+  .match-title span{font-size:12px; color:var(--muted);}
+  .bars{margin-bottom:10px;}
+  .barrow{display:flex; align-items:center; gap:10px; margin-bottom:8px; font-size:13px;}
+  .barrow .label{width:110px; flex-shrink:0; color:var(--muted);}
+  .barrow .track{flex:1; height:18px; background:var(--panel2); border-radius:6px; overflow:hidden; position:relative;}
+  .barrow .fill{height:100%; background:var(--accent);}
+  .barrow .pct{width:48px; text-align:right; font-weight:600; flex-shrink:0;}
+  .risk-tag{
+    display:inline-block; padding:3px 10px; border-radius:20px; font-size:11px; font-weight:600;
+    margin-top:6px;
+  }
+  .risk-low{background:rgba(62,207,142,0.15); color:var(--safe);}
+  .risk-med{background:rgba(224,162,62,0.15); color:var(--warn);}
+  .risk-high{background:rgba(224,90,78,0.15); color:var(--risk);}
+  .note{font-size:12px; color:var(--muted); margin-top:10px; line-height:1.5;}
+  .empty{color:var(--muted); font-size:13px; text-align:center; padding:30px 0;}
+  a{color:var(--accent);}
+  .footer-note{font-size:11px; color:var(--muted); margin-top:30px; line-height:1.6; border-top:1px solid var(--border); padding-top:16px;}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>FIFA World Cup — Semi-Final Probability Tool</h1>
+  <div class="sub">Pulls live fixtures + prediction stats from API-Football. For office pool reference only — not financial advice.</div>
+
+  <div class="panel">
+    <h2>Option A — free World Cup 2026 API (no plan limits, recommended)</h2>
+    <div class="note" style="margin-top:0; margin-bottom:14px;">
+      Built specifically for this tournament — semifinal matches are already tagged and scheduled July 14–15.
+      One-time free signup (email + password, stored only by that service, not by this page).
+    </div>
+    <div class="row">
+      <div><label>Email</label><input type="text" id="wcEmail" placeholder="you@example.com"></div>
+      <div><label>Password</label><input type="password" id="wcPassword" placeholder="choose any password"></div>
+    </div>
+    <label>Name (only needed the first time, for signup)</label>
+    <input type="text" id="wcName" placeholder="Your name">
+    <button id="wcLoadBtn">Get semi-final matchups</button>
+    <div class="status" id="wcStatus"></div>
+  </div>
+
+  <div class="panel">
+    <h2>Option B — API-Football (needs a compatible plan/season)</h2>
+    <div class="row">
+      <div>
+        <label>API host</label>
+        <select id="hostType">
+          <option value="direct">Direct (v3.football.api-sports.io)</option>
+          <option value="rapidapi">RapidAPI (api-football-v1.p.rapidapi.com)</option>
+        </select>
+      </div>
+      <div>
+        <label>Season year</label>
+        <input type="text" id="seasonYear" value="2026">
+      </div>
+    </div>
+    <label>Your API key</label>
+    <input type="password" id="apiKey" placeholder="Paste your API-Football key here" value="579b0429fbcf933f14541ed0977672b2">
+    <button id="loadBtn">Load semi-final fixtures</button>
+    <button class="secondary" id="checkSeasonsBtn">Check available seasons</button>
+    <button class="secondary" id="manualBtn">Skip — enter teams manually</button>
+    <div class="status" id="status"></div>
+  </div>
+
+  <div id="results"></div>
+
+  <div class="footer-note">
+    Your API key is saved directly in this file. Keep this repo <strong>private</strong> — if it's ever made public, forked, or shared, anyone who views the page source can see the key.
+    Probabilities blend the API's own prediction model (form, head-to-head, goal averages) where available. This is a reference tool for a casual pool, not a guarantee — treat anything under ~55% either way as a coin flip, not a "safe" bet.
+  </div>
+</div>
+
+<script>
+if(window.location.protocol === 'file:'){
+  document.addEventListener('DOMContentLoaded', () => {
+    const banner = document.createElement('div');
+    banner.style.cssText = 'background:rgba(224,90,78,0.15); color:var(--risk); padding:12px 16px; border-radius:8px; margin-bottom:20px; font-size:13px;';
+    banner.textContent = "You're viewing this as a local file (the address bar shows file://). Some features only work once this is uploaded to GitHub Pages and opened at your https:// URL. Double-check you're testing the live link, not the downloaded file.";
+    document.querySelector('.wrap').insertBefore(banner, document.querySelector('.wrap').children[2]);
+  });
+}
+const statusEl = document.getElementById('status');
+const resultsEl = document.getElementById('results');
+
+function setStatus(msg, type){
+  statusEl.textContent = msg;
+  statusEl.className = 'status' + (type ? ' ' + type : '');
+}
+
+function baseUrlFor(hostType){
+  return hostType === 'rapidapi'
+    ? 'https://api-football-v1.p.rapidapi.com/v3'
+    : 'https://v3.football.api-sports.io';
+}
+
+function headersFor(hostType, key){
+  if(hostType === 'rapidapi'){
+    return {
+      'x-rapidapi-key': key,
+      'x-rapidapi-host': 'api-football-v1.p.rapidapi.com'
+    };
+  }
+  return { 'x-apisports-key': key };
+}
+
+async function apiGet(path, hostType, key){
+  const url = baseUrlFor(hostType) + path;
+  let res;
+  try {
+    res = await fetch(url, { headers: headersFor(hostType, key) });
+  } catch(networkErr){
+    throw new Error('Browser blocked or could not complete the request (often a CORS restriction on the free plan, or no internet). Raw: ' + networkErr.message);
+  }
+  if(res.status === 403){
+    throw new Error('403 Forbidden — your key may not have access to this endpoint/plan, or the free tier blocks direct browser calls.');
+  }
+  if(res.status === 401){
+    throw new Error('401 Unauthorized — check the API key is correct and active.');
+  }
+  if(res.status === 429){
+    throw new Error('429 — you have hit your API rate limit for the day.');
+  }
+  if(!res.ok){
+    throw new Error('API responded with status ' + res.status);
+  }
+  const data = await res.json();
+  if(data.errors && Object.keys(data.errors).length){
+    throw new Error(JSON.stringify(data.errors));
+  }
+  return data;
+}
+
+function riskTag(pctFav){
+  // pctFav = probability of the favorite, 0-100
+  if(pctFav >= 62) return {cls:'risk-low', label:'Safer bet'};
+  if(pctFav >= 52) return {cls:'risk-med', label:'Moderate risk'};
+  return {cls:'risk-high', label:'High risk / coin flip'};
+}
+
+function renderMatchCard(match){
+  const { homeName, awayName, homePct, drawPct, awayPct, roundLabel, source } = match;
+  const favPct = Math.max(homePct, awayPct);
+  const risk = riskTag(favPct);
+  const favName = homePct >= awayPct ? homeName : awayName;
+
+  const div = document.createElement('div');
+  div.className = 'match-card';
+  div.innerHTML = `
+    <div class="match-title">
+      <h3>${homeName} vs ${awayName}</h3>
+      <span>${roundLabel || ''}</span>
+    </div>
+    <div class="bars">
+      <div class="barrow">
+        <div class="label">${homeName}</div>
+        <div class="track"><div class="fill" style="width:${homePct}%"></div></div>
+        <div class="pct">${homePct.toFixed(1)}%</div>
+      </div>
+      <div class="barrow">
+        <div class="label">Draw</div>
+        <div class="track"><div class="fill" style="width:${drawPct}%; background:var(--muted);"></div></div>
+        <div class="pct">${drawPct.toFixed(1)}%</div>
+      </div>
+      <div class="barrow">
+        <div class="label">${awayName}</div>
+        <div class="track"><div class="fill" style="width:${awayPct}%"></div></div>
+        <div class="pct">${awayPct.toFixed(1)}%</div>
+      </div>
+    </div>
+    <span class="risk-tag ${risk.cls}">${risk.label} — lean ${favName}</span>
+    <div class="note">Source: ${source}</div>
+  `;
+  resultsEl.appendChild(div);
+}
+
+document.getElementById('checkSeasonsBtn').addEventListener('click', async () => {
+  const hostType = document.getElementById('hostType').value;
+  const key = document.getElementById('apiKey').value.trim();
+  resultsEl.innerHTML = '';
+
+  if(!key){
+    setStatus('Paste your API key first.', 'err');
+    return;
+  }
+
+  setStatus('Checking which World Cup seasons your key can access…');
+  try {
+    const data = await apiGet('/leagues?id=1', hostType, key);
+    const league = data.response && data.response[0];
+    if(!league){
+      setStatus('No league data returned at all — likely a key/plan issue rather than a season issue.', 'err');
+      return;
+    }
+    const seasons = league.seasons || [];
+    const div = document.createElement('div');
+    div.className = 'panel';
+    if(!seasons.length){
+      div.innerHTML = '<h2>Available seasons</h2><p class="note">Your plan returned no seasons for this league at all — likely a free-tier limitation on this league specifically.</p>';
+    } else {
+      const rows = seasons.map(s => `<div class="barrow"><div class="label">${s.year}</div><div class="pct">${s.coverage && s.coverage.fixtures && s.coverage.fixtures.events ? 'full data' : 'limited data'}</div></div>`).join('');
+      div.innerHTML = `<h2>Seasons your key can access for the World Cup</h2>${rows}<p class="note">Pick one of these years above in the "Season year" field, then click "Load semi-final fixtures" again. If 2026 isn't listed, your current plan doesn't cover the live tournament yet.</p>`;
+    }
+    resultsEl.appendChild(div);
+    setStatus('Done.', 'ok');
+  } catch(err){
+    setStatus('Could not check seasons: ' + err.message, 'err');
+  }
+});
+
+const WC_BASE = 'https://worldcup26.ir';
+const CORS_PROXY = 'https://corsproxy.io/?url=';
+let wcToken = null;
+
+function proxied(url){
+  return CORS_PROXY + encodeURIComponent(url);
+}
+
+function setWcStatus(msg, type){
+  const el = document.getElementById('wcStatus');
+  el.textContent = msg;
+  el.className = 'status' + (type ? ' ' + type : '');
+}
+
+async function wcAuth(email, password, name){
+  // Try login first
+  let res = await fetch(proxied(WC_BASE + '/auth/authenticate'), {
+    method: 'POST',
+    headers: {'Content-Type':'application/json'},
+    body: JSON.stringify({ email, password })
+  });
+  let data = await res.json();
+  if(res.ok && data.token){
+    return data.token;
+  }
+  // Fall back to registering a new account
+  res = await fetch(proxied(WC_BASE + '/auth/register'), {
+    method: 'POST',
+    headers: {'Content-Type':'application/json'},
+    body: JSON.stringify({ name: name || 'Pool organiser', email, password })
+  });
+  data = await res.json();
+  if(res.ok && data.token){
+    return data.token;
+  }
+  throw new Error((data && (data.message || JSON.stringify(data))) || 'Could not authenticate or register.');
+}
+
+function renderWcMatchCard(match){
+  const { homeName, awayName, dateLabel, matchLabel } = match;
+  const div = document.createElement('div');
+  div.className = 'match-card';
+  const idBase = 'wc_' + Math.random().toString(36).slice(2,8);
+  div.innerHTML = `
+    <div class="match-title">
+      <h3>${homeName} vs ${awayName}</h3>
+      <span>${matchLabel} — ${dateLabel}</span>
+    </div>
+    <div class="row">
+      <div><label>${homeName} FIFA rank</label><input type="text" id="${idBase}_a" placeholder="e.g. 3"></div>
+      <div><label>${awayName} FIFA rank</label><input type="text" id="${idBase}_b" placeholder="e.g. 7"></div>
+    </div>
+    <button id="${idBase}_btn">Calculate probability</button>
+    <div id="${idBase}_out"></div>
+  `;
+  resultsEl.appendChild(div);
+
+  document.getElementById(idBase + '_btn').addEventListener('click', () => {
+    const rankA = parseFloat(document.getElementById(idBase + '_a').value) || 50;
+    const rankB = parseFloat(document.getElementById(idBase + '_b').value) || 50;
+    const ptsA = Math.max(1, 100 - rankA);
+    const ptsB = Math.max(1, 100 - rankB);
+    const total = ptsA + ptsB;
+    const homePct = (ptsA / total) * 80;
+    const awayPct = (ptsB / total) * 80;
+    const drawPct = 100 - homePct - awayPct;
+    const favPct = Math.max(homePct, awayPct);
+    const risk = riskTag(favPct);
+    const favName = homePct >= awayPct ? homeName : awayName;
+    const out = document.getElementById(idBase + '_out');
+    out.innerHTML = `
+      <div class="bars" style="margin-top:14px;">
+        <div class="barrow"><div class="label">${homeName}</div><div class="track"><div class="fill" style="width:${homePct}%"></div></div><div class="pct">${homePct.toFixed(1)}%</div></div>
+        <div class="barrow"><div class="label">Draw</div><div class="track"><div class="fill" style="width:${drawPct}%; background:var(--muted);"></div></div><div class="pct">${drawPct.toFixed(1)}%</div></div>
+        <div class="barrow"><div class="label">${awayName}</div><div class="track"><div class="fill" style="width:${awayPct}%"></div></div><div class="pct">${awayPct.toFixed(1)}%</div></div>
+      </div>
+      <span class="risk-tag ${risk.cls}">${risk.label} — lean ${favName}</span>
+      <div class="note">Fixture confirmed live from worldcup26.ir; probability is a FIFA-ranking estimate (enter accurate current ranks for a better number — check fifa.com/fifa-world-ranking for the latest).</div>
+    `;
+  });
+}
+
+document.getElementById('wcLoadBtn').addEventListener('click', async () => {
+  const email = document.getElementById('wcEmail').value.trim();
+  const password = document.getElementById('wcPassword').value.trim();
+  const name = document.getElementById('wcName').value.trim();
+  resultsEl.innerHTML = '';
+
+  if(!email || !password){
+    setWcStatus('Enter an email and password (any values — this just creates a lightweight account with that free service).', 'err');
+    return;
+  }
+
+  setWcStatus('Authenticating…');
+  try {
+    if(!wcToken){
+      wcToken = await wcAuth(email, password, name);
+    }
+    setWcStatus('Fetching all matches…');
+    const res = await fetch(proxied(WC_BASE + '/get/games'), {
+      headers: { 'Authorization': 'Bearer ' + wcToken }
+    });
+    if(!res.ok){
+      throw new Error('Status ' + res.status);
+    }
+    const data = await res.json();
+    const games = data.games || [];
+    const semis = games.filter(g => g.type === 'sf');
+
+    if(!semis.length){
+      setWcStatus('No semifinal matches found in the response — the schedule data may not be loaded yet on their end.', 'err');
+      return;
+    }
+
+    semis.forEach((g, i) => {
+      renderWcMatchCard({
+        homeName: g.home_team_name_en || g.home_team_label || 'TBD',
+        awayName: g.away_team_name_en || g.away_team_label || 'TBD',
+        dateLabel: g.local_date || '',
+        matchLabel: 'Semi-final ' + (i + 1)
+      });
+    });
+
+    setWcStatus(`Loaded ${semis.length} semi-final match(es).`, 'ok');
+
+  } catch(err){
+    setWcStatus('Could not load: ' + err.message, 'err');
+  }
+});
+
+document.getElementById('loadBtn').addEventListener('click', async () => {
+  const hostType = document.getElementById('hostType').value;
+  const key = document.getElementById('apiKey').value.trim();
+  const season = document.getElementById('seasonYear').value.trim();
+  resultsEl.innerHTML = '';
+
+  if(!key){
+    setStatus('Paste your API key first.', 'err');
+    return;
+  }
+
+  setStatus('Fetching World Cup fixtures…');
+  try {
+    // League 1 = FIFA World Cup in API-Football's league database
+    const fixturesData = await apiGet(`/fixtures?league=1&season=${encodeURIComponent(season)}`, hostType, key);
+    const fixtures = fixturesData.response || [];
+
+    // Filter to semi-finals (round name typically contains "Semi-finals")
+    const semis = fixtures.filter(f =>
+      (f.league && f.league.round && /semi/i.test(f.league.round))
+    );
+
+    const toShow = semis.length ? semis : fixtures;
+
+    if(!toShow.length){
+      setStatus('No fixtures found for that league/season. Try manual entry below, or double check your season year.', 'err');
+      return;
+    }
+
+    setStatus(`Found ${toShow.length} match(es). Pulling prediction stats…`);
+
+    for(const fx of toShow){
+      const fixtureId = fx.fixture.id;
+      const homeName = fx.teams.home.name;
+      const awayName = fx.teams.away.name;
+      const roundLabel = fx.league ? fx.league.round : '';
+
+      let homePct = null, drawPct = null, awayPct = null, source = 'ranking fallback';
+
+      try {
+        const predData = await apiGet(`/predictions?fixture=${fixtureId}`, hostType, key);
+        const pred = predData.response && predData.response[0];
+        if(pred && pred.predictions && pred.predictions.percent){
+          homePct = parseFloat(pred.predictions.percent.home);
+          drawPct = parseFloat(pred.predictions.percent.draw);
+          awayPct = parseFloat(pred.predictions.percent.away);
+          source = 'API-Football prediction model (form, H2H, goal stats)';
+        }
+      } catch(e){
+        // fall through to ranking fallback below
+      }
+
+      if(homePct === null){
+        const homeRank = (fx.teams.home.rank) || 50;
+        const awayRank = (fx.teams.away.rank) || 50;
+        const homePts = Math.max(1, 100 - homeRank);
+        const awayPts = Math.max(1, 100 - awayRank);
+        const total = homePts + awayPts;
+        homePct = (homePts / total) * 80;
+        awayPct = (awayPts / total) * 80;
+        drawPct = 100 - homePct - awayPct;
+      }
+
+      renderMatchCard({ homeName, awayName, homePct, drawPct, awayPct, roundLabel, source });
+    }
+
+    setStatus(`Loaded ${toShow.length} match(es).`, 'ok');
+
+  } catch(err){
+    setStatus('Could not reach the API: ' + err.message + '. Check your key, host selection, or try manual entry.', 'err');
+  }
+});
+
+document.getElementById('manualBtn').addEventListener('click', () => {
+  resultsEl.innerHTML = '';
+  const div = document.createElement('div');
+  div.className = 'panel';
+  div.innerHTML = `
+    <h2>Manual match entry</h2>
+    <div class="row">
+      <div><label>Team A name</label><input type="text" id="mTeamA" placeholder="e.g. Argentina"></div>
+      <div><label>Team B name</label><input type="text" id="mTeamB" placeholder="e.g. France"></div>
+    </div>
+    <div class="row">
+      <div><label>Team A FIFA rank</label><input type="text" id="mRankA" placeholder="e.g. 1"></div>
+      <div><label>Team B FIFA rank</label><input type="text" id="mRankB" placeholder="e.g. 2"></div>
+    </div>
+    <button id="mCalc">Calculate probabilities</button>
+  `;
+  resultsEl.appendChild(div);
+
+  document.getElementById('mCalc').addEventListener('click', () => {
+    const teamA = document.getElementById('mTeamA').value.trim() || 'Team A';
+    const teamB = document.getElementById('mTeamB').value.trim() || 'Team B';
+    const rankA = parseFloat(document.getElementById('mRankA').value) || 50;
+    const rankB = parseFloat(document.getElementById('mRankB').value) || 50;
+    const ptsA = Math.max(1, 100 - rankA);
+    const ptsB = Math.max(1, 100 - rankB);
+    const total = ptsA + ptsB;
+    const homePct = (ptsA / total) * 80;
+    const awayPct = (ptsB / total) * 80;
+    const drawPct = 100 - homePct - awayPct;
+    resultsEl.innerHTML = '';
+    renderMatchCard({
+      homeName: teamA, awayName: teamB,
+      homePct, drawPct, awayPct,
+      roundLabel: 'Manual entry',
+      source: 'FIFA ranking-based estimate (no live data)'
+    });
+  });
+});
+</script>
+</body>
+</html>
